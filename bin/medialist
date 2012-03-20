@@ -14,8 +14,16 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 include_once 'Console/Color.php';
 $con = new Console_Color;
 
+$search_path = array(
+  '/search/path',
+);
+
+
 //----------
-exec('convmv -f utf-8 --nfd -t utf-8 --nfc -r --replace --notest /media/M* 2>&1');
+foreach ($search_path as $v) {
+  $v = escapeshellarg($v);
+  exec('convmv -f utf-8 --nfd -t utf-8 --nfc -r --replace --notest '.$v .' 2>&1');
+}
 
 
 //----------
@@ -37,7 +45,17 @@ foreach ($select as $v) {
 
 
 //----------
-$delete2 = $pdo->query('SELECT * FROM mediaindex WHERE type != "dir" AND (unit = "Movies" OR unit = "Music")');
+foreach ($search_path as $v) {
+  $v = explode('/', $v);
+  $units[] = array_pop($v);
+}
+
+$unit = '(';
+foreach ($units as $v) {
+  $unit.= "unit='$v' OR";
+}
+$unit = substr($unit,0,-3) . ')';
+$delete2 = $pdo->query('SELECT * FROM mediaindex WHERE type != "dir" AND '. $unit);
 $delete2 = $delete2->fetchAll(PDO::FETCH_ASSOC);
 
 foreach($delete2 as $v) {
@@ -47,7 +65,11 @@ foreach($delete2 as $v) {
 
 
 //----------
-exec('find /media -maxdepth 0 && find /media/Movies && find /media/Music', $e);
+$exec = '';
+foreach ($search_path as $v) {
+  $exec.= 'find ' . escapeshellarg($v) . ' && ';
+}
+exec(substr($exec, 0, -4), $e);
 
 $insert = $pdo->prepare(
   'REPLACE INTO mediaindex (`path`,`unit`,`base`,`deep`,`type`,`date`,`size`,`time`,`bind`,`clip`)'.
