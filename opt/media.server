@@ -1,0 +1,39 @@
+server {
+  listen       80;
+  charset      UTF-8;
+  server_name  server.domain;
+  root         /server/path;
+  access_log   /var/log/nginx/$host.a.log;
+  error_log    /var/log/nginx/$host.e.log;
+  location / {
+    if (-f $request_filename) {
+      expires  7d;
+      break;
+    }
+    if (-f $document_root/index.php) {
+      rewrite  ^(.*) /index.php last;
+      break;
+    }
+  }
+  location /stream {
+    secure_download on;
+    secure_download_path_mode file;
+    secure_download_secret SECRET_PATH;
+    if ($secure_download = "-1") {
+      rewrite /expired /index.php last;
+    }
+    if ($secure_download = "-2") {
+      rewrite /badhash /index.php last;
+    }
+    if ($secure_download = "-3") {
+      rewrite /wrong /index.php last;
+    }
+    rewrite ^(.*)/[0-9a-zA-Z]*/[0-9a-zA-Z]*$ /index.php last;
+  }
+
+  location ~* \.php$ {
+    fastcgi_pass  localhost:9000;
+    #include       /etc/nginx/cache/fastcgi_cache_params;
+    include       /etc/nginx/fastcgi_params;
+  }
+}

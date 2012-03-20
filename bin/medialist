@@ -1,0 +1,185 @@
+#!/usr/bin/env php
+<?php
+
+$sec = require __DIR__ . '/secrets.php';
+$db  = $sec['db'];
+
+$DB_INFO = "{$db['driver']}:host={$db['host']};dbname={$db['dbname']}";
+$DB_USER = $db['user'];
+$DB_PASS = $db['password'];
+
+$pdo = new PDO($DB_INFO, $DB_USER, $DB_PASS);
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+include_once 'Console/Color.php';
+$con = new Console_Color;
+
+//----------
+exec('convmv -f utf-8 --nfd -t utf-8 --nfc -r --replace --notest /media/M* 2>&1');
+
+
+//----------
+$select = $pdo->query('SELECT * FROM mediaindex');
+$select = $select->fetchAll(PDO::FETCH_ASSOC);
+
+$delete = $pdo->prepare('DELETE FROM mediaindex WHERE path = ?');
+
+foreach ($select as $v) {
+  if (!file_exists($v['path'])) {
+    $delete->execute(array($v['path']));
+    echo $con->convert("%mDelete {$v['path']}%n\n");
+  }
+  if (1 == strlen($v['clip'])) {
+    $delete->execute(array($v['path']));
+    echo $con->convert("%mDelete {$v['path']}%n\n");
+  }
+}
+
+
+//----------
+$delete2 = $pdo->query('SELECT * FROM mediaindex WHERE type != "dir" AND (unit = "Movies" OR unit = "Music")');
+$delete2 = $delete2->fetchAll(PDO::FETCH_ASSOC);
+
+foreach($delete2 as $v) {
+  $delete->execute(array($v['path']));
+  echo $con->convert("%mDelete {$v['path']}%n\n");
+}
+
+
+//----------
+exec('find /media -maxdepth 0 && find /media/Movies && find /media/Music', $e);
+
+$insert = $pdo->prepare(
+  'REPLACE INTO mediaindex (`path`,`unit`,`base`,`deep`,`type`,`date`,`size`,`time`,`bind`,`clip`)'.
+                  ' VALUES (:path, :unit, :base, :deep, :type, :date, :size, :time, :bind, :clip)'
+);
+$insert->bindParam('path', $path);
+$insert->bindParam('unit', $__unit);
+$insert->bindParam('base', $__base);
+$insert->bindParam('deep', $__deep, PDO::PARAM_INT);
+$insert->bindParam('type', $__type);
+$insert->bindParam('date', $__date);
+$insert->bindParam('size', $__size, PDO::PARAM_INT);
+$insert->bindParam('time', $__time, PDO::PARAM_INT);
+$insert->bindParam('bind', $__bind, PDO::PARAM_BOOL);
+$insert->bindParam('clip', $__clip, PDO::PARAM_LOB);
+$select = $pdo->prepare('SELECT * FROM mediaindex WHERE path = ?');
+
+foreach ($e as $path) {
+
+  if ('.' == substr(basename($path),0,1)) {
+    continue;
+  } elseif (preg_match(':/\.:', $path)) {
+    continue;
+  } elseif (preg_match(':/_[A-Z]{4}-.*$:', $path)) {
+    continue;
+  }
+
+  $_path = escapeshellarg($path);
+  $__date = filemtime($path);
+  $__type = 'dir' == filetype($path) ? 'dir' : strtolower(substr($path, strrpos($path, '.')+1));
+
+  if ('dir' == $__type) {
+    list ($d, $f) = array(0, 0);
+    foreach (scandir($path) as $v) {
+      if (substr($v,0,1) == '.') continue;
+      if (is_dir("$path/$v")) {
+        $d++;
+      } elseif (is_file("$path/$v")) {
+        $f++;
+      }
+    }
+    $__bind = $d < $f;
+  } else {
+    $__bind = false;
+  }
+
+  $select->execute(array($path));
+  $row = $select->fetch(PDO::FETCH_ASSOC);
+
+  if (!empty($row) && 'dir' == $__type) {
+    continue;
+  } elseif (0 == strlen($row['clip']) || $__date != strtotime($row['date'])) {
+    if ('dir' != $__type && 'mp4' != $__type && 'mp3' != $__type ) {
+      continue;
+    }
+
+    exec("ffmpeg -i $_path 2>&1 | grep Duration", $i);
+    if (!empty($i)) {
+      $i = preg_replace('/^.*?([0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{2}).*$/', '$1', $i[0]);
+    } else {
+      $i = '00:00:00.00';
+    }
+
+    $tmp = '/tmp/ms.'.microtime(true).'.jpg';
+    $_tmp = escapeshellarg($tmp);
+
+    switch ($__type) {
+    case 'mp4':
+      exec("ffmpeg -i $_path -ss 4 -vframes 1 -f image2 $_tmp > /dev/null 2>&1");
+      exec("convert -resize 128x128 $_tmp $_tmp && /usr/local/bin/imgopt $_tmp");
+      $__clip = fopen($tmp, 'rb');
+      break;
+    case 'mp3':
+      exec("artwork -i $_path -o $_tmp && convert -resize 128x128 $_tmp $_tmp");
+      exec("/usr/local/bin/imgopt $_tmp");
+      if (file_exists($tmp)) {
+        $__clip = fopen($tmp, 'rb');
+      } else {
+        $__clip = fopen('/dev/null', 'rb');
+      }
+      break;
+    default :
+      $__clip = fopen('/dev/null', 'rb');
+      break;
+    }
+
+    $dirnam = implode('/', array_slice(explode('/', $path), 0, -1));
+    $__unit = basename($dirnam);
+    $__base = basename($path);
+    $__size = 'dir' == $__type ? 0 : filesize($path);
+    $__time = strtotime($i) - strtotime('00:00:00.00');
+    $__deep = substr_count($path, '/');
+    $__date = date('Y-m-d H:i:s', $__date);
+
+    $insert->execute();
+    fclose($__clip);
+
+    echo $con->convert("%gInsert $path%n\n");
+    if ('dir' != $__type) {
+      if (file_exists($tmp)) {
+        unlink($tmp);
+      }
+    }
+
+  }
+}
+
+
+//----------
+$select = $pdo->query('SELECT path,date,size,time FROM mediaindex WHERE type = "dir" ORDER BY deep DESC');
+$select = $select->fetchAll(PDO::FETCH_ASSOC);
+
+$insert = $pdo->prepare('UPDATE mediaindex SET date=:date, size=:size, time=:time, hook=:hook, hold=:hold WHERE path=:path');
+
+$include = $pdo->prepare('SELECT
+    (SELECT MAX(date) FROM mediaindex WHERE path LIKE :node AND type != "dir") as date,
+    (SELECT SUM(size) FROM mediaindex WHERE path LIKE :node AND type != "dir") as size,
+    (SELECT SUM(time) FROM mediaindex WHERE path LIKE :node AND type != "dir") as time,
+    (SELECT COUNT(id) FROM mediaindex WHERE path LIKE :node AND deep  = :deep) as hook,
+    (SELECT COUNT(id) FROM mediaindex WHERE path LIKE :node                  ) as hold
+  FROM mediaindex WHERE path = :path');
+
+foreach ($select as $row) {
+  $include->execute(array('path' => $row['path'], 'node' => "{$row['path']}/%", 'deep' => substr_count($row['path'], '/')+1));
+  $stm = $include->fetch(PDO::FETCH_ASSOC);
+  $stm['path'] = $row['path'];
+  $insert->execute(array(
+    'date' => $stm['date'],
+    'size' => $stm['size'],
+    'time' => $stm['time'],
+    'hook' => $stm['hook'],
+    'hold' => $stm['hold'],
+    'path' => $stm['path'],
+  ));
+}

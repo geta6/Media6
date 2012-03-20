@@ -1,0 +1,4 @@
+.Apple*
+.DS_Store
+tmp/*
+bin/secrets.php

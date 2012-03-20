@@ -1,0 +1,89 @@
+{% spaceless %}
+
+{% macro loadstyle(href) %}
+  <link rel='stylesheet' href='{{ href }}'>
+{% endmacro %}
+
+{% macro loadscript(src) %}
+  <script src='{{ src }}'></script>
+{% endmacro %}
+
+<!DOCTYPE html>
+<html>
+
+
+  <head>
+    <meta charset='utf-8'>
+    <title>Media6</title>
+    {{ _self.loadstyle('http://yui.yahooapis.com/3.4.1/build/cssreset/cssreset-min.css') }}
+    {% if mobile %}
+      <meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=no'>
+      <meta name='apple-mobile-web-app-capable' content='yes'>
+      <meta name='apple-mobile-web-app-status-bar-style' content='black'>
+      <link rel='apple-touch-icon' href='/src/img/apple-touch-icon.png'>
+      {{ _self.loadstyle('/src/styles.mb.css') }}
+    {% else %}
+      {{ _self.loadstyle('/src/styles.css') }}
+    {% endif %}
+  </head>
+
+
+  <body>
+
+    <div id='headbar'>
+      <div>
+        <a class='button back'>Back</a>
+        <h1><span></span></h1>
+        <a class='button sort'>
+          <span class='icon-bar'></span>
+          <span class='icon-bar'></span>
+          <span class='icon-bar'></span>
+        </a>
+      </div>
+    </div>
+
+    <div id='navsort'>
+      <ul>
+        <li id='byname'>Sort by Name</li>
+        <li id='bydate'>Sort by Date</li>
+      </ul>
+    </div>
+
+    <div id='sidebar'>
+      <ul>
+        <li><span>Music</span><ul>
+          <li class='mb'><a href='#/media/Music'>Songs</a></li>
+          <li><a><s>Playlists</s></a></li>
+        </ul></li>
+        <li><span>Videos</span><ul>
+          <li class='mb'><a href='#/media/Movies'>Clips</a></li>
+          <li><a><s>Playlists</s></a></li>
+        </ul></li>
+        <li><span>Main</span><ul>
+          <li><a><s>What's new</s></a></li>
+          <li><a><s>Search</s></a></li>
+          <li><a><s>Shuffle</s></a></li>
+          <li class='mb'><a id='signout'>Sign out</a></li>
+        </ul></li>
+      </ul>
+    </div>
+
+    <div id='content'>
+      {% block content %}{% endblock %}
+    </div>
+
+    <div id='hud'>
+      <div id='spin'></div>
+      <div id='huds'>Loading...</div>
+    </div>
+
+    {{ _self.loadscript('//ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js') }}
+    {{ _self.loadscript('//cdn.geta6.net/jquery/isotope/1.5.14.js') }}
+    {{ _self.loadscript('/src/scripts.js') }}
+
+  </body>
+
+
+</html>
+
+{% endspaceless %}

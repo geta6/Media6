@@ -1,0 +1,39 @@
+#hud {
+  z-index: 120;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  margin-top: -70px;
+  margin-left: -90px;
+  width: 180px;
+  height: 140px;
+  background: rgba(0,0,0,.72);
+  border-radius: 12px;
+}
+
+
+#spin {
+  -webkit-transform: rotate(360deg);
+  -webkit-animation-name: spin;
+  -webkit-animation-duration: .72s;
+  -webkit-animation-iteration-count: infinite;
+  -webkit-animation-timing-function: linear;
+  margin: 30px auto 0 auto;
+  width: 35px;
+  height: 35px;
+  background-position: center;
+  background-image: url(img/spin.png);
+  @-webkit-keyframes spin {
+    from {-webkit-transform: rotate(0deg);}
+    to   {-webkit-transform: rotate(360deg);}
+  }
+}
+
+
+#huds {
+  padding-top: 20px;
+  font-weight: bold;
+  font-size: 14px;
+  color: #FFF;
+  text-align: center;
+}

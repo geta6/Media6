@@ -1,0 +1,72 @@
+{% spaceless %}
+
+
+  {% if self.bind %}
+
+    <div id='bind'>
+      <div class='clip'>
+        <img src='/thumb{{ self.path }}' data-loaded='true'>
+      </div>
+      <div class='info'>
+        <p class='title'>{{ self.base }}</p>
+        <p class='album'>{{ self.unit }}</p>
+      </div>
+      <div id='media'>
+        <div id='media-audio'>
+          <h1></h1>
+          <audio id='audio' autoplay controls></audio>
+          <div class='close'>x</div>
+        </div>
+        <div id='media-video'>
+          <h1></h1>
+          <video id='video' autoplay controls></video>
+          <div class='close'>x</div>
+        </div>
+      </div>
+      <div class='row'>
+        <ul>
+          <li class='name'>Name</li>
+          <li class='unit'>Unit</li>
+          <li class='time'>Time</li>
+          <li class='size'>Size</li>
+          <li class='date'>Date</li>
+        </ul>
+        {% for unit in units %}
+          <a class='playmedia' data-hash='{{ unit.hash }}' data-type='{{ unit.type }}'>
+            <ul>
+              <li class='name'>{{ unit.base }}</li>
+              <li class='unit'>{{ unit.unit }}</li>
+              <li class='time'>{{ unit.time|date('i:s') }}</li>
+              <li class='size'>{{ "%.02f MB" | format(unit.size / 1024 / 1024) }}</li>
+              <li class='date'>{{ unit.date|date('Y.m.d') }}</li>
+            </ul>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+
+  {% else %}
+
+    <div id='isotope'>
+      {% for unit in units %}
+        <a href='#{{ unit.path }}'>
+          <div class='row' data-name='{{ unit.base }}' data-date='{{ unit.date|date('U') }}'>
+            <div class='clip'>
+              {% if mobile %}
+                <img src='/src/img/default.48.jpg' data-original='/thumb{{ unit.path }}?size=48' data-loaded='false'>
+              {% else %}
+                <img src='/src/img/default.jpg' data-original='/thumb{{ unit.path }}' data-loaded='false'>
+              {% endif %}
+            </div>
+            <div class='col'>
+              <p class='file'>{{ unit.base }}</p>
+              <p class='unit'>{{ unit.unit }}</p>
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+
+  {% endif %}
+
+{% endspaceless %}
